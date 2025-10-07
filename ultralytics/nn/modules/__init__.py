@@ -17,6 +17,7 @@ Examples:
     >>> subprocess.run(f"onnxslim {f} {f} && open {f}", shell=True, check=True)  # pip install onnxslim
 """
 
+from .attention import CBAM
 from .block import (
     C1,
     C2,
@@ -89,7 +90,6 @@ from .head import (
     YOLOESegment,
     v10Detect,
 )
-from .attention import CBAM
 from .transformer import (
     AIFI,
     MLP,
