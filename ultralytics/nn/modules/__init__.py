@@ -89,6 +89,7 @@ from .head import (
     YOLOESegment,
     v10Detect,
 )
+from .attention import CBAM
 from .transformer import (
     AIFI,
     MLP,
@@ -179,4 +180,5 @@ __all__ = (
     "TorchVision",
     "Index",
     "A2C2f",
+    "CBAM",
 )

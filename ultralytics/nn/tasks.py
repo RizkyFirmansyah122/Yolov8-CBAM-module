@@ -68,6 +68,7 @@ from ultralytics.nn.modules import (
     YOLOEDetect,
     YOLOESegment,
     v10Detect,
+    CBAM,
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -384,6 +385,10 @@ class DetectionModel(BaseModel):
         """
         super().__init__()
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
+        self.yaml["ch"] = 3 #bagian ini yang di tambah
+        self.yaml["channels"] = 3 #bagian ini yang di tambah
+        if not isinstance(ch, int) or ch < 3: #bagian ini yang di tambah
+            ch = 3 #bagian ini yang di tambah 
         if self.yaml["backbone"][0][2] == "Silence":
             LOGGER.warning(
                 "YOLOv9 `Silence` module is deprecated in favor of torch.nn.Identity. "
@@ -396,7 +401,8 @@ class DetectionModel(BaseModel):
         if nc and nc != self.yaml["nc"]:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml["nc"] = nc  # override YAML value
-        self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)  # model, savelist
+        self.model, self.save = parse_model(deepcopy(self.yaml), ch=3, verbose=verbose) #bagian ini diubah
+        # self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)  # model, savelist
         self.names = {i: f"{i}" for i in range(self.yaml["nc"])}  # default names dict
         self.inplace = self.yaml.get("inplace", True)
         self.end2end = getattr(self.model[-1], "end2end", False)
@@ -415,6 +421,7 @@ class DetectionModel(BaseModel):
 
             self.model.eval()  # Avoid changing batch statistics until training begins
             m.training = True  # Setting it to True to properly return strides
+            ch= 3 # Bagian ini yang di tambah 
             m.stride = torch.tensor([s / x.shape[-2] for x in _forward(torch.zeros(1, ch, s, s))])  # forward
             self.stride = m.stride
             self.model.train()  # Set model back to training(default) mode
@@ -1536,7 +1543,11 @@ def parse_model(d, ch, verbose=True):
         save (list): Sorted list of output layers.
     """
     import ast
-
+    # --- FIX: Force RGB input ---
+    if isinstance(ch, int) and ch == 1:
+        ch = [3]                                                    #Bagian ini yang diubah keselurhan if else
+    elif isinstance(ch, list) and len(ch) == 1 and ch[0] == 1:
+        ch = [3]
     # Args
     legacy = True  # backward compatibility for v3/v5/v8/v9 models
     max_channels = float("inf")
