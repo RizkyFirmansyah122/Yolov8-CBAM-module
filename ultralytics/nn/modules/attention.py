@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 
 # =====================================================
 # Channel Attention (sudah benar, tidak diubah)
@@ -18,9 +18,7 @@ class ChannelAttention(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
         self.mlp = nn.Sequential(
-            nn.Conv2d(c1, hidden, 1, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(hidden, c1, 1, bias=False)
+            nn.Conv2d(c1, hidden, 1, bias=False), nn.ReLU(inplace=True), nn.Conv2d(hidden, c1, 1, bias=False)
         )
         self._built = True
 
@@ -58,7 +56,8 @@ class SpatialAttention(nn.Module):
 # CBAM (DIPERBAIKI)
 # =====================================================
 class CBAM(nn.Module):
-    """CBAM (Channel + Spatial) dengan auto-build untuk YOLOv8 scaling"""
+    """CBAM (Channel + Spatial) dengan auto-build untuk YOLOv8 scaling."""
+
     def __init__(self, c1: int | None = None, reduction: int = 16, k: int = 7):
         super().__init__()
         self.reduction = reduction
@@ -75,15 +74,15 @@ class CBAM(nn.Module):
     def forward(self, x):
         if not self._built:
             self._build(x.shape[1])
-        
+
         # 1. Terapkan Channel Attention
         x_refined_by_channel = self.ca(x)
-        
+
         # 2. Hasilkan Spatial Attention Map dari feature map yang sudah disempurnakan
         spatial_attention_map = self.sa(x_refined_by_channel)
-        
+
         # 3. Kalikan feature map dari langkah 1 dengan spatial map dari langkah 2
         x_refined_finally = x_refined_by_channel * spatial_attention_map
-        
+
         # 4. Kembalikan feature map akhir yang channel-nya tidak berubah
         return x_refined_finally
