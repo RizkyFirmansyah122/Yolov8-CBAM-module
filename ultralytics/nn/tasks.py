@@ -68,7 +68,6 @@ from ultralytics.nn.modules import (
     YOLOEDetect,
     YOLOESegment,
     v10Detect,
-    CBAM,
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -385,10 +384,10 @@ class DetectionModel(BaseModel):
         """
         super().__init__()
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
-        self.yaml["ch"] = 3 #bagian ini yang di tambah
-        self.yaml["channels"] = 3 #bagian ini yang di tambah
-        if not isinstance(ch, int) or ch < 3: #bagian ini yang di tambah
-            ch = 3 #bagian ini yang di tambah 
+        self.yaml["ch"] = 3  # bagian ini yang di tambah
+        self.yaml["channels"] = 3  # bagian ini yang di tambah
+        if not isinstance(ch, int) or ch < 3:  # bagian ini yang di tambah
+            ch = 3  # bagian ini yang di tambah
         if self.yaml["backbone"][0][2] == "Silence":
             LOGGER.warning(
                 "YOLOv9 `Silence` module is deprecated in favor of torch.nn.Identity. "
@@ -401,7 +400,7 @@ class DetectionModel(BaseModel):
         if nc and nc != self.yaml["nc"]:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml["nc"] = nc  # override YAML value
-        self.model, self.save = parse_model(deepcopy(self.yaml), ch=3, verbose=verbose) #bagian ini diubah
+        self.model, self.save = parse_model(deepcopy(self.yaml), ch=3, verbose=verbose)  # bagian ini diubah
         # self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)  # model, savelist
         self.names = {i: f"{i}" for i in range(self.yaml["nc"])}  # default names dict
         self.inplace = self.yaml.get("inplace", True)
@@ -421,7 +420,7 @@ class DetectionModel(BaseModel):
 
             self.model.eval()  # Avoid changing batch statistics until training begins
             m.training = True  # Setting it to True to properly return strides
-            ch= 3 # Bagian ini yang di tambah 
+            ch = 3  # Bagian ini yang di tambah
             m.stride = torch.tensor([s / x.shape[-2] for x in _forward(torch.zeros(1, ch, s, s))])  # forward
             self.stride = m.stride
             self.model.train()  # Set model back to training(default) mode
@@ -1543,9 +1542,10 @@ def parse_model(d, ch, verbose=True):
         save (list): Sorted list of output layers.
     """
     import ast
+
     # --- FIX: Force RGB input ---
     if isinstance(ch, int) and ch == 1:
-        ch = [3]                                                    #Bagian ini yang diubah keselurhan if else
+        ch = [3]  # Bagian ini yang diubah keselurhan if else
     elif isinstance(ch, list) and len(ch) == 1 and ch[0] == 1:
         ch = [3]
     # Args
@@ -1556,7 +1556,7 @@ def parse_model(d, ch, verbose=True):
     scale = d.get("scale")
     if scales:
         if not scale:
-            scale = tuple(scales.keys())[0]
+            scale = next(iter(scales.keys()))
             LOGGER.warning(f"no model scale passed. Assuming scale='{scale}'.")
         depth, width, max_channels = scales[scale]
 
@@ -1703,7 +1703,7 @@ def parse_model(d, ch, verbose=True):
         m_.np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type = i, f, t  # attach index, 'from' index, type
         if verbose:
-            LOGGER.info(f"{i:>3}{str(f):>20}{n_:>3}{m_.np:10.0f}  {t:<45}{str(args):<30}")  # print
+            LOGGER.info(f"{i:>3}{f!s:>20}{n_:>3}{m_.np:10.0f}  {t:<45}{args!s:<30}")  # print
         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0:
@@ -1747,7 +1747,7 @@ def guess_model_scale(model_path):
         (str): The size character of the model's scale (n, s, m, l, or x).
     """
     try:
-        return re.search(r"yolo(e-)?[v]?\d+([nslmx])", Path(model_path).stem).group(2)  # noqa
+        return re.search(r"yolo(e-)?[v]?\d+([nslmx])", Path(model_path).stem).group(2)
     except AttributeError:
         return ""
 
