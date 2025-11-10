@@ -2,9 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# =====================================================
-# Channel Attention (sudah benar, tidak diubah)
-# =====================================================
+
 class ChannelAttention(nn.Module):
     def __init__(self, c1: int | None = None, reduction: int = 16):
         super().__init__()
@@ -33,9 +31,7 @@ class ChannelAttention(nn.Module):
         return x * scale
 
 
-# =====================================================
-# Spatial Attention (DIPERBAIKI)
-# =====================================================
+
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=7):
         super().__init__()
@@ -54,9 +50,7 @@ class SpatialAttention(nn.Module):
         return self.sigmoid(y)
 
 
-# =====================================================
-# CBAM (DIPERBAIKI)
-# =====================================================
+
 class CBAM(nn.Module):
     """CBAM (Channel + Spatial) dengan auto-build untuk YOLOv8 scaling"""
     def __init__(self, c1: int | None = None, reduction: int = 16, k: int = 7):

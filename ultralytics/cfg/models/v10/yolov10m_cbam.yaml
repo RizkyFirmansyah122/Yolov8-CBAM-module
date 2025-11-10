@@ -1,0 +1,52 @@
+# Ultralytics 🚀 YOLOv10m + CBAM Integration
+# CBAM disisipkan setelah tiap C2f backbone dan setelah SPPF
+# C2fCIB tetap di head stage tertinggi (P5)
+
+# Parameters
+nc: 2  # number of classes
+scales:
+  # [depth, width, max_channels]  (nilai tipikal untuk "m")
+  m: [0.67, 0.75, 768]
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv,   [64, 3, 2]]           # 0-P1/2
+  - [-1, 1, Conv,   [128, 3, 2]]          # 1-P2/4
+  - [-1, 6, C2f,    [128, True]]          # 2  (P2 C2f, repeats lebih besar untuk 'm')
+  - [-1, 1, CBAM,   []]                   # 3  CBAM after C2f-128
+
+  - [-1, 1, Conv,   [256, 3, 2]]          # 4-P3/8
+  - [-1, 12, C2f,   [256, True]]          # 5  (P3 C2f)
+  - [-1, 1, CBAM,   []]                   # 6  CBAM after C2f-256
+
+  - [-1, 1, SCDown, [512, 3, 2]]          # 7-P4/16
+  - [-1, 12, C2f,   [512, True]]          # 8  (P4 C2f)
+  - [-1, 1, CBAM,   []]                   # 9  CBAM after C2f-512
+
+  - [-1, 1, SCDown, [1024, 3, 2]]         # 10-P5/32
+  - [-1, 6, C2f,    [1024, True]]         # 11 (P5 C2f)
+  - [-1, 1, CBAM,   []]                   # 12 CBAM after C2f-1024
+
+  - [-1, 1, SPPF,   [1024, 5]]            # 13
+  - [-1, 1, CBAM,   []]                   # 14 CBAM after SPPF
+
+  - [-1, 1, PSA,    [1024]]               # 15
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 16
+  - [[-1, 8], 1, Concat, [1]]                    # 17 cat backbone P4 (tap ke C2f index=8)
+  - [-1, 3, C2f, [512]]                          # 18
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 19
+  - [[-1, 5], 1, Concat, [1]]                    # 20 cat backbone P3 (tap ke C2f index=5)
+  - [-1, 3, C2f, [256]]                          # 21 (P3/8-small)
+
+  - [-1, 1, Conv, [256, 3, 2]]                   # 22
+  - [[-1, 18], 1, Concat, [1]]                   # 23 cat head P4
+  - [-1, 3, C2f, [512]]                          # 24 (P4/16-medium)
+
+  - [-1, 1, SCDown, [512, 3, 2]]                 # 25
+  - [[-1, 15], 1, Concat, [1]]                   # 26 cat head P5 (tap PSA index=15)
+  - [-1, 3, C2fCIB, [1024, True, True]]          # 27 (P5/32-large head, pertahankan C2fCIB)
+
+  - [[21, 24, 27], 1, v10Detect, [nc]]           # 28 Detect(P3, P4, P5)
