@@ -1,14 +1,16 @@
 # scripts/wbf_val.py
-from pathlib import Path
-import yaml
-import numpy as np
-import cv2
-from ultralytics import YOLO
-from ultralytics.utils.metrics import box_iou, ap_per_class
-from ensemble_boxes import weighted_boxes_fusion
-import torch
 import datetime as dt
+from pathlib import Path
+
+import cv2
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import yaml
+from ensemble_boxes import weighted_boxes_fusion
+
+from ultralytics import YOLO
+from ultralytics.utils.metrics import ap_per_class, box_iou
 
 # -------------------- CONFIG --------------------
 DATA_YAML = r"D:/TA/Project/cric/data.yaml"  # dataset yaml
@@ -32,8 +34,8 @@ WBF_WEIGHTS = [1.0, 1.0, 1.0]
 IOU_EVAL_THR = np.linspace(0.5, 0.95, 10)
 
 # Confusion Matrix behavior
-MATCH_IOU_FOR_CM = 0.50        # IoU untuk matching CM (greedy)
-BUILD_WITH_BG = True           # bangun CM (nc+1)x(nc+1) lalu turunkan versi no-bg dari sini
+MATCH_IOU_FOR_CM = 0.50  # IoU untuk matching CM (greedy)
+BUILD_WITH_BG = True  # bangun CM (nc+1)x(nc+1) lalu turunkan versi no-bg dari sini
 
 OUTDIR = Path(r"D:/TA/Project/ultralytics/outputwbf")
 OUTDIR.mkdir(parents=True, exist_ok=True)
@@ -41,7 +43,7 @@ OUTDIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_yaml(path):
-    with open(path, "r") as f:
+    with open(path) as f:
         return yaml.safe_load(f)
 
 
@@ -99,8 +101,7 @@ def from_norm(xyxy, w, h):
 
 def yolo_pred(model, img_path, conf, iou):
     """Run YOLO model inference on one image."""
-    r = model.predict(source=img_path, imgsz=IMGSZ, conf=conf, iou=iou,
-                      device=DEVICE, verbose=False, max_det=300)[0]
+    r = model.predict(source=img_path, imgsz=IMGSZ, conf=conf, iou=iou, device=DEVICE, verbose=False, max_det=300)[0]
     if r.boxes is None or len(r.boxes) == 0:
         return np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
     b = r.boxes.xyxy.cpu().numpy()
@@ -120,8 +121,7 @@ def wbf_ensemble(img_path, models, confs, ious, wbf_iou, wbf_skip, weights):
         all_c.append(c.tolist())
     if sum(len(x) for x in all_b) == 0:
         return np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
-    B, S, L = weighted_boxes_fusion(all_b, all_s, all_c,
-                                    weights=weights, iou_thr=wbf_iou, skip_box_thr=wbf_skip)
+    B, S, L = weighted_boxes_fusion(all_b, all_s, all_c, weights=weights, iou_thr=wbf_iou, skip_box_thr=wbf_skip)
     return from_norm(np.array(B), w, h), np.array(S), np.array(L, dtype=int)
 
 
@@ -192,15 +192,14 @@ def main():
         gt_xyxy, gt_cls = read_labels_yolo(gt_txt, w, h)
 
         p_xyxy, p_conf, p_cls = wbf_ensemble(
-            img_p, models, CONF_PER_MODEL, IOU_NMS_PER_MODEL,
-            WBF_IOU_THR, WBF_SKIP_BOX_THR, WBF_WEIGHTS
+            img_p, models, CONF_PER_MODEL, IOU_NMS_PER_MODEL, WBF_IOU_THR, WBF_SKIP_BOX_THR, WBF_WEIGHTS
         )
 
         # ---------- AP/PR accumulation ----------
         iou = (
-            box_iou(torch.tensor(gt_xyxy, dtype=torch.float32),
-                    torch.tensor(p_xyxy, dtype=torch.float32)).numpy()
-            if (len(p_xyxy) and len(gt_xyxy)) else np.zeros((len(gt_xyxy), len(p_xyxy)))
+            box_iou(torch.tensor(gt_xyxy, dtype=torch.float32), torch.tensor(p_xyxy, dtype=torch.float32)).numpy()
+            if (len(p_xyxy) and len(gt_xyxy))
+            else np.zeros((len(gt_xyxy), len(p_xyxy)))
         )
         tp_img = np.zeros((p_xyxy.shape[0], IOU_EVAL_THR.size), dtype=bool)
         if iou.size:
@@ -218,9 +217,9 @@ def main():
 
         # ---------- Confusion Matrix accumulation (IoU=0.5 greedy) ----------
         iou_cm = (
-            box_iou(torch.tensor(gt_xyxy, dtype=torch.float32),
-                    torch.tensor(p_xyxy, dtype=torch.float32)).numpy()
-            if (len(p_xyxy) and len(gt_xyxy)) else np.zeros((len(gt_xyxy), len(p_xyxy)))
+            box_iou(torch.tensor(gt_xyxy, dtype=torch.float32), torch.tensor(p_xyxy, dtype=torch.float32)).numpy()
+            if (len(p_xyxy) and len(gt_xyxy))
+            else np.zeros((len(gt_xyxy), len(p_xyxy)))
         )
         gt_match_cm = -np.ones(len(gt_xyxy), dtype=int)
         used_pred = set()
@@ -252,7 +251,7 @@ def main():
     target_cls = np.concatenate(target_cls, 0)
 
     # ap_per_class -> (tp, fp, p, r, f1, ap, unique, p_curve, r_curve, f1_curve, x, prec_values)
-    _, _, P, R, F1, AP, unique, p_curve, r_curve, f1_curve, x_vals, prec_values = ap_per_class(
+    _, _, P, R, F1, AP, _unique, _p_curve, _r_curve, _f1_curve, _x_vals, _prec_values = ap_per_class(
         tps, confs, pred_cls, target_cls, plot=False, save_dir=OUTDIR
     )
 
@@ -284,12 +283,24 @@ def main():
     # 3) NO BG: raw counts (crop)
     cm_no_bg = cm_bg[:nc, :nc] if BUILD_WITH_BG else cm_bg  # aman bila BUILD_WITH_BG=False
     path_counts_nobg = OUTDIR / f"cm_counts_no_bg_{ts}.png"
-    plot_cm(cm_no_bg, class_names, path_counts_nobg, normalize=False, include_bg=False,
-            title="Confusion Matrix (counts, no background)")
+    plot_cm(
+        cm_no_bg,
+        class_names,
+        path_counts_nobg,
+        normalize=False,
+        include_bg=False,
+        title="Confusion Matrix (counts, no background)",
+    )
     # 4) NO BG: normalized
     path_norm_nobg = OUTDIR / f"cm_norm_no_bg_{ts}.png"
-    plot_cm(cm_no_bg, class_names, path_norm_nobg, normalize=True, include_bg=False,
-            title="Confusion Matrix (normalized, no background)")
+    plot_cm(
+        cm_no_bg,
+        class_names,
+        path_norm_nobg,
+        normalize=True,
+        include_bg=False,
+        title="Confusion Matrix (normalized, no background)",
+    )
 
     print("\nSaved confusion matrices:")
     # print(f"- {path_counts_bg}")
@@ -300,9 +311,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
 
 
 # # CODE KEDUA

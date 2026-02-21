@@ -1,14 +1,15 @@
 # scripts/wbf_single_debug.py
 from pathlib import Path
+
 import cv2
-import numpy as np
-import torch
-from ultralytics import YOLO
-from ensemble_boxes import weighted_boxes_fusion
 import matplotlib.pyplot as plt
+import torch
+from ensemble_boxes import weighted_boxes_fusion
+
+from ultralytics import YOLO
 
 # --- CONFIG ---
-IMAGE_PATH  = r"D:/TA/Project/cric/test/images/e501b86a4eb392736b083deb8c4537f8_png.rf.28b9a7b0c0fe18bfeea2229ad7df7a14.jpg"  # dataset yaml
+IMAGE_PATH = r"D:/TA/Project/cric/test/images/e501b86a4eb392736b083deb8c4537f8_png.rf.28b9a7b0c0fe18bfeea2229ad7df7a14.jpg"  # dataset yaml
 MODEL_PATHS = [
     r"D:/TA/Project/ultralytics/models/v10l.pt",
     r"D:/TA/Project/ultralytics/models/v10m.pt",
@@ -45,9 +46,8 @@ for idx, (m, conf, iou) in enumerate(zip(models, CONF_PER_MODEL, IOU_NMS_PER_MOD
     for box, score, cls in zip(b, s, c):
         x1, y1, x2, y2 = map(int, box)
         cv2.rectangle(vis, (x1, y1), (x2, y2), colors[idx], 2)
-        cv2.putText(vis, f"{cls}:{score:.2f}", (x1, y1 - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[idx], 2)
-    cv2.imwrite(f"D:/TA/Project/ultralytics/outputwbf/model{idx+1}_pred.png", vis)
+        cv2.putText(vis, f"{cls}:{score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[idx], 2)
+    cv2.imwrite(f"D:/TA/Project/ultralytics/outputwbf/model{idx + 1}_pred.png", vis)
 
     # normalize coordinates for WBF
     b_norm = b.copy()
@@ -63,7 +63,9 @@ if sum(len(x) for x in all_boxes) == 0:
     exit()
 
 boxes, scores, labels = weighted_boxes_fusion(
-    all_boxes, all_scores, all_labels,
+    all_boxes,
+    all_scores,
+    all_labels,
     weights=WBF_WEIGHTS,
     iou_thr=WBF_IOU_THR,
     skip_box_thr=WBF_SKIP_BOX_THR,
@@ -78,8 +80,9 @@ ensemble_vis = im.copy()
 for box, score, cls in zip(boxes, scores, labels):
     x1, y1, x2, y2 = map(int, box)
     cv2.rectangle(ensemble_vis, (x1, y1), (x2, y2), (255, 0, 255), 2)
-    cv2.putText(ensemble_vis, f"Fused {int(cls)}:{score:.2f}", (x1, y1 - 5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+    cv2.putText(
+        ensemble_vis, f"Fused {int(cls)}:{score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2
+    )
 
 save_path = Path(r"D:/TA/Project/ultralytics/outputwbf/wbf_fused_debug.png")
 cv2.imwrite(str(save_path), ensemble_vis)
